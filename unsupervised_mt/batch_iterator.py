@@ -18,30 +18,30 @@ class BatchIterator:
         batch = dict()
         if indices:
             batch.update({
-                'indices': np.array([
+                'indices': torch.Tensor([
                     self.load_sentence(language, idx, pad=max_len - self.load_len(language, idx))
-                    for idx in random_ids])
+                    for idx in random_ids]).transpose(0, 1)
             })
 
         if one_hot:
             batch.update({
-                'one-hot': np.array([
+                'one-hot': torch.from_numpy(np.array([
                     self.load_one_hot_sentence(language, idx, pad=max_len - self.load_len(language, idx))
                     for idx in random_ids
-                ]).transpose(1, 0, 2).astype(np.float32)
+                ]).astype(np.float32)).transpose(0, 1)
             })
 
         if embeddings:
             batch.update({
-                'embeddings': np.array([
+                'embeddings': torch.from_numpy(np.array([
                     self.load_embeddings(language, idx, pad=max_len - self.load_len(language, idx))
                     for idx in random_ids
-                ]).transpose(1, 0, 2).astype(np.float32)
+                ]).transpose(1, 0, 2).astype(np.float32)).transpose(0, 1)
             })
 
         return batch
 
-    def load_batch(self, batch_size, indices=False, one_hot=True, embeddings=False):
+    def load_batch(self, batch_size, indices=True, one_hot=False, embeddings=False):
         """
         Load batch which consists of source sentences, target sentences
         """
@@ -49,8 +49,3 @@ class BatchIterator:
                                                     indices=indices, one_hot=one_hot, embeddings=embeddings),
                 'tgt': self.load_one_language_batch(batch_size, 'tgt',
                                                     indices=indices, one_hot=one_hot, embeddings=embeddings)}
-
-
-
-
-        

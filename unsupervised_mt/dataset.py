@@ -25,7 +25,11 @@ class Dataset:
                 self.vocabs[language].add_sentence(sentence, language,
                                                    words_filter=lambda w: language + '-' + w in self.word2emb)
 
-        self.emb_matrix = {l: np.array([self.word2emb[w] for w in self.vocabs[l].index2word]) for l in self.languages}
+        # embedding matrix
+        self.emb_matrix = {
+            l: np.array([self.word2emb[w] for w in self.vocabs[l].index2word], dtype=np.float32)
+            for l in self.languages
+        }
 
         # split
         self.ids = {l: list(range(len(self.sentences[l]))) for l in self.languages}

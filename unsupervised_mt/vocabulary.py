@@ -10,6 +10,7 @@ class Vocabulary:
         self.index2word = list()
         self.word2index = dict()
         self.word2count = Counter()
+        self.size = 0
         for language in self.languages:
             for w in ['<sos>', '<eos>', '<unk>', '<pad>']:
                 self.add_word(w, language)
@@ -44,6 +45,7 @@ class Vocabulary:
                 self.word2index[word] = len(self.index2word)
                 self.word2count[word] += 1
                 self.index2word.append(word)
+                self.size += 1
             else:
                 self.word2count[word] += 1
 

@@ -36,7 +36,7 @@ def load_embeddings(emb_path, language, encoding='utf-8', newline='\n', errors='
     return word2emb
 
 
-def load_sentences(corp_path, max_len=10, encoding='utf-8', newline='\n', errors='ignore'):
+def load_sentences(corp_path, max_length=10, encoding='utf-8', newline='\n', errors='ignore'):
     with io.open(corp_path, 'r', encoding=encoding, newline=newline, errors=errors) as f:
         sentences = list(map(normalize_string, f.readlines()))
-    return list(filter(lambda s: len(s.split(' ')) < max_len, sentences))
+    return list(filter(lambda s: len(s.split(' ')) < max_length, sentences))

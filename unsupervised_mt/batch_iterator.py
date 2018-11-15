@@ -4,6 +4,7 @@ import torch
 
 class BatchIterator:
     def __init__(self, dataset):
+        self.languages = dataset.languages
         self.load_sentence = dataset.load_sentence
         self.load_one_hot_sentence = dataset.load_one_hot_sentence
         self.load_embeddings = dataset.load_embeddings
@@ -11,16 +12,16 @@ class BatchIterator:
         self.train_ids = dataset.train_ids
 
     def load_one_language_batch(self, batch_size, language,
-                                indices=False, one_hot=True, embeddings=False):
+                                indices=True, one_hot=False, embeddings=False):
         random_ids = np.random.choice(self.train_ids[language], size=batch_size)
         max_len = np.max([self.load_len(language, idx) for idx in random_ids])
 
         batch = dict()
         if indices:
             batch.update({
-                'indices': torch.Tensor([
+                'indices': torch.tensor([
                     self.load_sentence(language, idx, pad=max_len - self.load_len(language, idx))
-                    for idx in random_ids]).transpose(0, 1)
+                    for idx in random_ids], dtype=torch.long).transpose(0, 1)
             })
 
         if one_hot:
@@ -45,7 +46,7 @@ class BatchIterator:
         """
         Load batch which consists of source sentences, target sentences
         """
-        return {'src': self.load_one_language_batch(batch_size, 'src',
-                                                    indices=indices, one_hot=one_hot, embeddings=embeddings),
-                'tgt': self.load_one_language_batch(batch_size, 'tgt',
-                                                    indices=indices, one_hot=one_hot, embeddings=embeddings)}
+        return {
+            l: self.load_one_language_batch(batch_size, l, indices=indices, one_hot=one_hot, embeddings=embeddings)
+            for l in self.languages
+        }

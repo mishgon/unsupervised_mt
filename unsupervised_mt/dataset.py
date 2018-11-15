@@ -5,13 +5,18 @@ from unsupervised_mt.vocabulary import Vocabulary
 
 
 class Dataset:
-    def __init__(self, corp_paths, emb_paths, train_fraction=0.9):
-        self.languages = ['src', 'tgt']
+    def __init__(self, languages, corp_paths, emb_paths, max_length, train_fraction=0.9):
+        self.languages = languages
         self.corp_paths = {l: p for l, p in zip(self.languages, corp_paths)}
         self.emb_paths = {l: p for l, p in zip(self.languages, emb_paths)}
+        self.max_length = max_length
+        self.train_fraction = train_fraction
 
         # load sentences
-        self.sentences = {l: load_sentences(self.corp_paths[l]) for l in self.languages}
+        self.sentences = {
+            l: load_sentences(self.corp_paths[l], max_length=self.max_length)
+            for l in self.languages
+        }
 
         # load embeddings
         self.word2emb = dict()
@@ -33,7 +38,7 @@ class Dataset:
 
         # split
         self.ids = {l: list(range(len(self.sentences[l]))) for l in self.languages}
-        test_size = int((1 - train_fraction) * np.min([len(self.ids[l]) for l in self.languages]))
+        test_size = int((1 - self.train_fraction) * np.min([len(self.ids[l]) for l in self.languages]))
         self.test_ids = {l: self.ids[l][:test_size] for l in self.languages}
         self.train_ids = {l: self.ids[l][test_size:] for l in self.languages}
 

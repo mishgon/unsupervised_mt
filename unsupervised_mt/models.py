@@ -3,8 +3,13 @@ import torch
 import torch.nn as nn
 
 
-class Embedding(nn.Module):
+def identity(input):
+    return input
+
+
+class PretrainedEmbedding(nn.Module):
     def __init__(self, emb_matrix):
+        super(PretrainedEmbedding, self).__init__()
         self.embedding = nn.Embedding.from_pretrained(torch.from_numpy(emb_matrix))
         self.embedding.requires_grad = False
         self.input_size = self.embedding.num_embeddings
@@ -14,15 +19,22 @@ class Embedding(nn.Module):
         return self.embedding(input)
 
 
-class Encoder(nn.Module):
-    def __init__(self, embedding: Embedding, rnn):
-        super(Encoder, self).__init__()
+class EncoderRNN(nn.Module):
+    def __init__(self, embedding: PretrainedEmbedding, rnn):
+        super(EncoderRNN, self).__init__()
+        assert embedding.embedding_dim == rnn.input_size
+
         self.embedding = embedding
         self.embedding_dim = embedding.embedding_dim
         self.rnn = rnn
         self.hidden_size = rnn.hidden_size
 
     def forward(self, inputs):
+        """
+        inputs: length x batch_size
+        outputs: length x batch_size x hidden_size
+        hidden: n_layers x batch_size x hidden_size
+        """
         embedded = self.embedding(inputs)
         outputs, hidden = self.rnn(embedded)
         return outputs, hidden
@@ -30,6 +42,7 @@ class Encoder(nn.Module):
 
 class DecoderHat(nn.Module):
     def __init__(self, hidden_size, output_size):
+        super(DecoderHat, self).__init__()
         self.hidden_size = hidden_size
         self.output_size = output_size
         self.linear = nn.Linear(hidden_size, output_size)
@@ -39,11 +52,13 @@ class DecoderHat(nn.Module):
         return self.softmax(self.linear(input))
 
 
-class Decoder(nn.Module):
-    def __init__(self, embedding: Embedding, rnn, hat: DecoderHat,
+class DecoderRNN(nn.Module):
+    def __init__(self, embedding: PretrainedEmbedding, rnn, hat: DecoderHat,
                  max_encoder_length, sos_index, eos_index,
                  use_cuda=False, use_attention=True):
-        assert embedding.input_size == hat.output_size
+        super(DecoderRNN, self).__init__()
+        assert embedding.embedding_dim == rnn.input_size and\
+               embedding.input_size == hat.output_size
 
         self.embedding = embedding
         self.embedding_dim = embedding.embedding_dim
@@ -90,32 +105,58 @@ class Decoder(nn.Module):
         return output, hidden
 
     def init_input(self, batch_size):
-        initial_input = torch.full((batch_size,), self.sos_index, dtype=torch.int64)
+        initial_input = torch.full((batch_size,), self.sos_index, dtype=torch.long)
         initial_input = initial_input.cuda() if self.use_cuda else initial_input
         return initial_input
 
     def forward(self, hidden, encoder_outputs, targets, teacher_forcing_ratio=0.5):
-        # targets: target_length x batch_size
-        input = self.initial_input(encoder_outputs.size(1))
+        """
+        targets: target_length x batch_size
+        """
+        input = self.init_input(encoder_outputs.size(1))
         outputs = []
         for t in range(targets.size(0)):
             output, hidden = self.step(input, hidden, encoder_outputs)
-            outputs.append(output)
-            input = targets[t] if np.random.binomial(1, teacher_forcing_ratio) else output
-        return outputs
+            outputs.append(output.unsqueeze(0))
+            if np.random.binomial(1, teacher_forcing_ratio):
+                input = targets[t]
+            else:
+                input = torch.topk(output, k=1)[1].squeeze(-1)
+
+        return torch.cat(outputs)
 
 
 class Seq2Seq(nn.Module):
-    def __init__(self, encoder_embedding: Embedding, encoder_rnn,
-                 decoder_embedding: Embedding, decoder_rnn, decoder_hat: DecoderHat,
-                 max_encoder_length, use_cuda=False, use_attention=True):
-        assert encoder_rnn.hidden_size == decoder_rnn.hidden_size \
-               and encoder_rnn.num_layers == decoder_rnn.num_layers
+    def __init__(self, encoder_embedding: PretrainedEmbedding, encoder_rnn,
+                 decoder_embedding: PretrainedEmbedding, decoder_rnn, decoder_hat: DecoderHat,
+                 max_encoder_length, sos_index, eos_index,
+                 use_cuda=False, use_attention=True):
+        super(Seq2Seq, self).__init__()
+        assert encoder_rnn.hidden_size == decoder_rnn.hidden_size and\
+               encoder_rnn.num_layers == decoder_rnn.num_layers
 
-        self.encoder = Encoder(encoder_embedding, encoder_rnn)
-        self.decoder = Decoder(decoder_embedding, decoder_rnn, decoder_hat,
-                               max_encoder_length, use_cuda, use_attention)
+        self.encoder = EncoderRNN(encoder_embedding, encoder_rnn)
+        self.decoder = DecoderRNN(decoder_embedding, decoder_rnn, decoder_hat,
+                                  max_encoder_length, sos_index, eos_index,
+                                  use_cuda, use_attention)
 
     def forward(self, inputs, targets, teacher_forcing_ratio=0.5):
-        return self.decoder(*self.encoder(inputs), targets, teacher_forcing_ratio)
+        encoder_outputs, hidden = self.encoder(inputs)
+        decoder_outputs = self.decoder(hidden, encoder_outputs, targets, teacher_forcing_ratio)
+        return decoder_outputs, encoder_outputs
+
+
+class Discriminator(nn.Module):
+    def __init__(self, hidden_size):
+        super(Discriminator, self).__init__()
+        self.hidden_size = hidden_size
+
+        self.layers = nn.Sequential(
+            nn.Linear(hidden_size, 100), nn.ReLU(),
+            nn.Linear(100, 10), nn.ReLU(),
+            nn.Linear(10, 1)
+        )
+
+    def forward(self, encoder_output):
+        return self.layers(encoder_output)
 

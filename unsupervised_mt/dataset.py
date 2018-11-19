@@ -78,9 +78,10 @@ class Dataset:
         return [self.word2nearest_word(index, language1, language2) for index in sentence]
 
     def translate_batch_word_by_word(self, batch, language1, language2):
+        device = batch.device
         batch = batch.transpose(0, 1).tolist()
         batch = [self.translate_sentence_word_by_word(s, language1, language2) for s in batch]
-        return torch.tensor(batch, dtype=torch.long).transpose(0, 1)
+        return torch.tensor(batch, dtype=torch.long, device=device).transpose(0, 1)
 
     def print_sentence(self, sentence, language):
         print([self.vocabs[language].index2word[index].split('-', 1)[1] for index in sentence])

@@ -13,7 +13,7 @@ class Trainer:
                  encoder_rnn, decoder_rnn, attention: Attention,
                  src_hat: DecoderHat, tgt_hat: DecoderHat, discriminator: Discriminator,
                  src_sos_index, tgt_sos_index, src_eos_index, tgt_eos_index, src_pad_index, tgt_pad_index,
-                 lr_core=1e-3, lr_disc=1e-3, use_cuda=False):
+                 device, lr_core=1e-3, lr_disc=1e-3):
         assert discriminator.hidden_size == encoder_rnn.hidden_size
 
         self.frozen_src2tgt = frozen_src2tgt
@@ -35,7 +35,12 @@ class Trainer:
         self.tgt_eos_index = tgt_eos_index
         self.src_pad_index = src_pad_index
         self.tgt_pad_index = tgt_pad_index
+        self.device = device
 
+        self.core_model.to(device)
+        self.discriminator.to(device)
+
+        use_cuda = device.type == 'cuda'
         self.src2src = Seq2Seq(src_embedding, encoder_rnn, src_embedding, attention, decoder_rnn, src_hat, use_cuda)
         self.src2tgt = Seq2Seq(src_embedding, encoder_rnn, tgt_embedding, attention, decoder_rnn, tgt_hat, use_cuda)
         self.tgt2tgt = Seq2Seq(tgt_embedding, encoder_rnn, tgt_embedding, attention, decoder_rnn, tgt_hat, use_cuda)

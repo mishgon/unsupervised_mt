@@ -13,7 +13,7 @@ class Trainer:
                  encoder_rnn, decoder_rnn, attention: Attention,
                  src_hat: DecoderHat, tgt_hat: DecoderHat, discriminator: Discriminator,
                  src_sos_index, tgt_sos_index, src_eos_index, tgt_eos_index, src_pad_index, tgt_pad_index,
-                 lr_core=1e-3, lr_disc=1e-3):
+                 lr_core=1e-3, lr_disc=1e-3, use_cuda=False):
         assert discriminator.hidden_size == encoder_rnn.hidden_size
 
         self.frozen_src2tgt = frozen_src2tgt
@@ -36,38 +36,34 @@ class Trainer:
         self.src_pad_index = src_pad_index
         self.tgt_pad_index = tgt_pad_index
 
-        self.src2src = Seq2Seq(src_embedding, encoder_rnn, src_embedding, attention, decoder_rnn, src_hat)
-        self.src2tgt = Seq2Seq(src_embedding, encoder_rnn, tgt_embedding, attention, decoder_rnn, tgt_hat)
-        self.tgt2tgt = Seq2Seq(tgt_embedding, encoder_rnn, tgt_embedding, attention, decoder_rnn, tgt_hat)
-        self.tgt2src = Seq2Seq(tgt_embedding, encoder_rnn, src_embedding, attention, decoder_rnn, src_hat)
+        self.src2src = Seq2Seq(src_embedding, encoder_rnn, src_embedding, attention, decoder_rnn, src_hat, use_cuda)
+        self.src2tgt = Seq2Seq(src_embedding, encoder_rnn, tgt_embedding, attention, decoder_rnn, tgt_hat, use_cuda)
+        self.tgt2tgt = Seq2Seq(tgt_embedding, encoder_rnn, tgt_embedding, attention, decoder_rnn, tgt_hat, use_cuda)
+        self.tgt2src = Seq2Seq(tgt_embedding, encoder_rnn, src_embedding, attention, decoder_rnn, src_hat, use_cuda)
 
         self.core_optimizer = SGD(self.core_model.parameters(), lr=lr_core)
         self.discriminator_optimizer = SGD(self.discriminator.parameters(), lr=lr_disc)
 
     def train_step(self, batch, weights=(1, 1, 1), drop_probability=0.1, permutation_constraint=3):
-        core_loss, discriminator_loss = 0, 0
-
         src2src_dec, src2src_enc = self.src2src(
             noise(batch['src'], self.src_pad_index, drop_probability, permutation_constraint),
-            batch['src'], self.src_sos_index
+            self.src_sos_index, batch['src']
         )
         tgt2tgt_dec, tgt2tgt_enc = self.tgt2tgt(
             noise(batch['tgt'], self.tgt_pad_index, drop_probability, permutation_constraint),
-            batch['tgt'], self.tgt_sos_index
+            self.tgt_sos_index, batch['tgt']
         )
         tgt2src_dec, tgt2src_enc = self.tgt2src(
-            noise(log_probs2indices(self.frozen_src2tgt.evaluate(batch['src'], self.tgt_sos_index, self.tgt_eos_index)),
-                  self.tgt_pad_index, drop_probability, permutation_constraint),
-            batch['src'], self.src_sos_index
+            noise(self.frozen_src2tgt(batch['src']), self.tgt_pad_index, drop_probability, permutation_constraint),
+            self.src_sos_index, batch['src']
         )
         src2tgt_dec, src2tgt_enc = self.src2tgt(
-            noise(log_probs2indices(self.frozen_tgt2src.evaluate(batch['tgt'], self.src_sos_index, self.src_eos_index)),
-                  self.src_pad_index, drop_probability, permutation_constraint),
-            batch['tgt'], self.tgt_sos_index
+            noise(self.frozen_tgt2src(batch['tgt']), self.src_pad_index, drop_probability, permutation_constraint),
+            self.tgt_sos_index, batch['tgt']
         )
 
         # autoencoding
-        core_loss += weights[0] * (
+        core_loss = weights[0] * (
                 translation_loss(src2src_dec, batch['src']) +
                 translation_loss(tgt2tgt_dec, batch['tgt'])
         )

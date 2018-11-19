@@ -1,11 +1,12 @@
 import numpy as np
+import torch
 
 from unsupervised_mt.utils import load_sentences, load_embeddings
 from unsupervised_mt.vocabulary import Vocabulary
 
 
 class Dataset:
-    def __init__(self, languages, corp_paths, emb_paths, max_length, train_fraction=0.9):
+    def __init__(self, languages, corp_paths, emb_paths, max_length=10, train_fraction=0.9):
         self.languages = languages
         self.corp_paths = {l: p for l, p in zip(self.languages, corp_paths)}
         self.emb_paths = {l: p for l, p in zip(self.languages, emb_paths)}
@@ -47,6 +48,47 @@ class Dataset:
 
     def load_len(self, language, idx):
         return len(self.load_sentence(language, idx))
+
+    def get_sos_index(self, language):
+        return self.vocabs[language].get_sos(language)
+
+    def get_eos_index(self, language):
+        return self.vocabs[language].get_eos(language)
+
+    def get_pad_index(self, language):
+        return self.vocabs[language].get_pad(language)
+
+    def get_unk_index(self, language):
+        return self.vocabs[language].get_unk(language)
+
+    def word2nearest_word(self, index, language1, language2):
+        if index == self.get_sos_index(language1):
+            return self.get_sos_index(language2)
+        elif index == self.get_eos_index(language1):
+            return self.get_eos_index(language2)
+        elif index == self.get_pad_index(language1):
+            return self.get_pad_index(language2)
+        elif index == self.get_unk_index(language1):
+            return self.get_unk_index(language2)
+        else:
+            word = self.vocabs[language1].index2word[index]
+            return np.argmin(np.sum((self.emb_matrix[language2] - self.word2emb[word]) ** 2, axis=1))
+
+    def translate_sentence_word_by_word(self, sentence, language1, language2):
+        return [self.word2nearest_word(index, language1, language2) for index in sentence]
+
+    def translate_batch_word_by_word(self, batch, language1, language2):
+        batch = batch.transpose(0, 1).tolist()
+        batch = [self.translate_sentence_word_by_word(s, language1, language2) for s in batch]
+        return torch.tensor(batch, dtype=torch.long).transpose(0, 1)
+
+    def print_sentence(self, sentence, language):
+        print([self.vocabs[language].index2word[index].split('-', 1)[1] for index in sentence])
+
+    def print_batch(self, batch, language):
+        batch = batch.transpose(0, 1).tolist()
+        for sentence in batch:
+            self.print_sentence(sentence, language)
 
     def load_one_hot_sentence(self, language, idx, pad=0):
         return np.eye(self.vocabs[language].size)[self.load_sentence(language, idx, pad=pad)]

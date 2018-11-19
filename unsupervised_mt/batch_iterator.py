@@ -26,6 +26,10 @@ class BatchIterator:
     def load_batch(self, batch_size, random_state=None):
         return {l: self.load_monolingual_batch(batch_size, l, random_state) for l in self.languages}
 
+    def batch_generator(self, batch_size):
+        while True:
+            yield self.load_batch(batch_size)
+
 
 
 

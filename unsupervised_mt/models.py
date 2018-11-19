@@ -131,7 +131,7 @@ class Decoder(nn.Module):
 
         return torch.cat(outputs)
 
-    def evaluate(self, hidden, encoder_outputs, sos_index, eos_index):
+    def evaluate(self, hidden, encoder_outputs, sos_index, eos_index, n_iters=None):
         """
         hidden: n_layers x batch_size x hidden_size
         encoder_outputs: length x batch_size x hidden_size
@@ -140,11 +140,13 @@ class Decoder(nn.Module):
         input = self.init_input(hidden.size(1), sos_index)
         outputs = []
         ended = np.zeros(hidden.size(1))
-        while ~np.all(ended):
+        while ~np.all(ended) and n_iters != 0:
             output, hidden = self.step(input, hidden, encoder_outputs)
             outputs.append(output.unsqueeze(0))
             input = torch.topk(output, k=1)[1].squeeze(-1)
             ended += (input == eos_index).numpy()
+            if n_iters is not None:
+                n_iters -= 1
 
         return torch.cat(outputs)
 
@@ -160,15 +162,14 @@ class Seq2Seq(nn.Module):
         self.encoder = Encoder(encoder_embedding, encoder_rnn)
         self.decoder = Decoder(decoder_embedding, attention, decoder_rnn, decoder_hat, use_cuda)
 
-    def forward(self, inputs, targets, sos_index, teacher_forcing_ratio=0.5, eos_index=None):
+    def forward(self, inputs, sos_index, targets, teacher_forcing_ratio=0.5):
         encoder_outputs, hidden = self.encoder(inputs)
-        decoder_outputs = self.decoder(hidden, encoder_outputs, targets,
-                                       sos_index, teacher_forcing_ratio, eos_index)
+        decoder_outputs = self.decoder(hidden, encoder_outputs, sos_index, targets, teacher_forcing_ratio)
         return decoder_outputs, encoder_outputs
 
-    def evaluate(self, inputs, sos_index, eos_index):
+    def evaluate(self, inputs, sos_index, eos_index, n_iters=None):
         encoder_outputs, hidden = self.encoder(inputs)
-        decoder_outputs = self.decoder.evaluate(hidden, encoder_outputs, sos_index, eos_index)
+        decoder_outputs = self.decoder.evaluate(hidden, encoder_outputs, sos_index, eos_index, n_iters)
         return decoder_outputs
 
 

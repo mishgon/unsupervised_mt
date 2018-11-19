@@ -2,6 +2,8 @@ import io
 import unicodedata
 import re
 import numpy as np
+from typing import List
+import torch
 
 
 def unicode_to_ascii(s):
@@ -40,3 +42,36 @@ def load_sentences(corp_path, max_length=10, encoding='utf-8', newline='\n', err
     with io.open(corp_path, 'r', encoding=encoding, newline=newline, errors=errors) as f:
         sentences = list(map(normalize_string, f.readlines()))
     return list(filter(lambda s: len(s.split(' ')) < max_length, sentences))
+
+
+def pad_monolingual_batch(batch: List[int], pad_index):
+    max_length = np.max([len(s) for s in batch])
+    return [s + (max_length - len(s)) * [pad_index] for s in batch]
+
+
+def noise_sentence(sentence: List[int], pad_index, drop_probability=0.1, permutation_constraint=3):
+    sentence = list(filter(lambda index: index != pad_index, sentence))
+    eos = sentence[-1:]
+    sentence = sentence[:-1]
+    np.random.seed()
+
+    sentence = list(filter(lambda index: np.random.binomial(1, 1 - drop_probability), sentence))
+
+    # notation from paper
+    alpha = permutation_constraint + 1
+    q = np.arange(len(sentence)) + np.random.uniform(0, alpha, size=len(sentence))
+    sentence = list(np.array(sentence)[np.argsort(q)])
+
+    return sentence + eos
+
+
+def noise(batch: torch.Tensor, pad_index, drop_probability=0.1, permutation_constraint=3):
+    batch = batch.transpose(0, 1).tolist()
+    batch = [noise_sentence(s, pad_index, drop_probability, permutation_constraint) for s in batch]
+    batch = pad_monolingual_batch(batch, pad_index)
+    return torch.tensor(batch, dtype=torch.long).transpose(0, 1)
+
+
+def log_probs2indices(decoder_outputs):
+    return decoder_outputs.topk(k=1)[1].squeeze(-1)
+

@@ -114,7 +114,8 @@ class Decoder(nn.Module):
         initial_input = initial_input.cuda() if self.use_cuda else initial_input
         return initial_input
 
-    def forward(self, hidden, encoder_outputs, targets, sos_index, teacher_forcing_ratio=0.5, eos_index=None):
+    def forward(self, hidden, encoder_outputs, sos_index,
+                targets, teacher_forcing_ratio=0.5):
         """
         targets: target_length x batch_size
         """
@@ -127,6 +128,23 @@ class Decoder(nn.Module):
                 input = targets[t]
             else:
                 input = torch.topk(output, k=1)[1].squeeze(-1)
+
+        return torch.cat(outputs)
+
+    def evaluate(self, hidden, encoder_outputs, sos_index, eos_index):
+        """
+        hidden: n_layers x batch_size x hidden_size
+        encoder_outputs: length x batch_size x hidden_size
+        input: batch_size
+        """
+        input = self.init_input(hidden.size(1), sos_index)
+        outputs = []
+        ended = np.zeros(hidden.size(1))
+        while ~np.all(ended):
+            output, hidden = self.step(input, hidden, encoder_outputs)
+            outputs.append(output.unsqueeze(0))
+            input = torch.topk(output, k=1)[1].squeeze(-1)
+            ended += (input == eos_index).numpy()
 
         return torch.cat(outputs)
 
@@ -147,6 +165,11 @@ class Seq2Seq(nn.Module):
         decoder_outputs = self.decoder(hidden, encoder_outputs, targets,
                                        sos_index, teacher_forcing_ratio, eos_index)
         return decoder_outputs, encoder_outputs
+
+    def evaluate(self, inputs, sos_index, eos_index):
+        encoder_outputs, hidden = self.encoder(inputs)
+        decoder_outputs = self.decoder.evaluate(hidden, encoder_outputs, sos_index, eos_index)
+        return decoder_outputs
 
 
 class Discriminator(nn.Module):

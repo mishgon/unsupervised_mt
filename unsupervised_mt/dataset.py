@@ -1,6 +1,6 @@
 import numpy as np
 
-from unsupervised_mt.utils.data_utils import load_sentences, load_embeddings
+from unsupervised_mt.utils import load_sentences, load_embeddings
 from unsupervised_mt.vocabulary import Vocabulary
 
 
@@ -45,6 +45,9 @@ class Dataset:
     def load_sentence(self, language, idx, pad=0):
         return self.vocabs[language].get_indices(self.sentences[language][idx], language=language, pad=pad)
 
+    def load_len(self, language, idx):
+        return len(self.load_sentence(language, idx))
+
     def load_one_hot_sentence(self, language, idx, pad=0):
         return np.eye(self.vocabs[language].size)[self.load_sentence(language, idx, pad=pad)]
 
@@ -52,8 +55,7 @@ class Dataset:
         return np.array([self.word2emb[self.vocabs[language].index2word[index]]
                          for index in self.load_sentence(language, idx, pad)])
 
-    def load_len(self, language, idx):
-        return len(self.sentences[language][idx].split()) + 1 # length with eos
+
 
 
 

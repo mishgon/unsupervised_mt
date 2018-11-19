@@ -1,8 +1,8 @@
 from unsupervised_mt.models import Embedding, Encoder, DecoderHat, \
     Decoder, Seq2Seq, Discriminator, Attention, identity
 from unsupervised_mt.losses import translation_loss, classification_loss
+from unsupervised_mt.utils import noise, log_probs2indices
 
-import torch
 import torch.nn as nn
 from torch.optim import SGD
 
@@ -12,7 +12,8 @@ class Trainer:
                  src_embedding: Embedding, tgt_embedding: Embedding,
                  encoder_rnn, decoder_rnn, attention: Attention,
                  src_hat: DecoderHat, tgt_hat: DecoderHat, discriminator: Discriminator,
-                 src_sos_index, tgt_sos_index, lr_core=1e-3, lr_disc=1e-3):
+                 src_sos_index, tgt_sos_index, src_eos_index, tgt_eos_index, src_pad_index, tgt_pad_index,
+                 lr_core=1e-3, lr_disc=1e-3):
         assert discriminator.hidden_size == encoder_rnn.hidden_size
 
         self.frozen_src2tgt = frozen_src2tgt
@@ -30,40 +31,55 @@ class Trainer:
         self.discriminator = discriminator
         self.src_sos_index = src_sos_index
         self.tgt_sos_index = tgt_sos_index
+        self.src_eos_index = src_eos_index
+        self.tgt_eos_index = tgt_eos_index
+        self.src_pad_index = src_pad_index
+        self.tgt_pad_index = tgt_pad_index
 
         self.src2src = Seq2Seq(src_embedding, encoder_rnn, src_embedding, attention, decoder_rnn, src_hat)
         self.src2tgt = Seq2Seq(src_embedding, encoder_rnn, tgt_embedding, attention, decoder_rnn, tgt_hat)
         self.tgt2tgt = Seq2Seq(tgt_embedding, encoder_rnn, tgt_embedding, attention, decoder_rnn, tgt_hat)
         self.tgt2src = Seq2Seq(tgt_embedding, encoder_rnn, src_embedding, attention, decoder_rnn, src_hat)
 
-        self.core_optimizer = SGD(self.core_model.parameters(), lr=lr_core),
-        self.discriminator_optimizer = SGD(self.discriminator.parameters(), lr=lr_disc),
+        self.core_optimizer = SGD(self.core_model.parameters(), lr=lr_core)
+        self.discriminator_optimizer = SGD(self.discriminator.parameters(), lr=lr_disc)
 
-    def train_step(self, batch, noise, weights):
-        src_batch, tgt_batch = batch['src']['indices'], batch['tgt']['indices']
+    def train_step(self, batch, weights=(1, 1, 1), drop_probability=0.1, permutation_constraint=3):
         core_loss, discriminator_loss = 0, 0
 
-        src2src_dec, src2src_enc = self.src2src(noise(src_batch), src_batch, self.src_sos_index)
-        tgt2tgt_dec, tgt2tgt_enc = self.tgt2tgt(noise(tgt_batch), tgt_batch, self.tgt_sos_index)
-        tgt2src_dec, tgt2src_enc = self.tgt2src(noise(self._log_probs2indices(self.frozen_src2tgt(src_batch)[0])),
-                                                src_batch, self.src_sos_index)
-        src2tgt_dec, src2tgt_enc = self.src2tgt(noise(self._log_probs2indices(self.frozen_tgt2src(tgt_batch)[0])),
-                                                tgt_batch, self.tgt_sos_index)
+        src2src_dec, src2src_enc = self.src2src(
+            noise(batch['src'], self.src_pad_index, drop_probability, permutation_constraint),
+            batch['src'], self.src_sos_index
+        )
+        tgt2tgt_dec, tgt2tgt_enc = self.tgt2tgt(
+            noise(batch['tgt'], self.tgt_pad_index, drop_probability, permutation_constraint),
+            batch['tgt'], self.tgt_sos_index
+        )
+        tgt2src_dec, tgt2src_enc = self.tgt2src(
+            noise(log_probs2indices(self.frozen_src2tgt.evaluate(batch['src'], self.tgt_sos_index, self.tgt_eos_index)),
+                  self.tgt_pad_index, drop_probability, permutation_constraint),
+            batch['src'], self.src_sos_index
+        )
+        src2tgt_dec, src2tgt_enc = self.src2tgt(
+            noise(log_probs2indices(self.frozen_tgt2src.evaluate(batch['tgt'], self.src_sos_index, self.src_eos_index)),
+                  self.src_pad_index, drop_probability, permutation_constraint),
+            batch['tgt'], self.tgt_sos_index
+        )
 
         # autoencoding
-        core_loss += weights['auto'] * (
-                translation_loss(src2src_dec, src_batch) +
-                translation_loss(tgt2src_dec, tgt_batch)
+        core_loss += weights[0] * (
+                translation_loss(src2src_dec, batch['src']) +
+                translation_loss(tgt2tgt_dec, batch['tgt'])
         )
 
         # translating
-        core_loss += weights['translate'] * (
-            translation_loss(tgt2src_dec, src_batch) +
-            translation_loss(src2tgt_dec, tgt_batch)
+        core_loss += weights[1] * (
+            translation_loss(tgt2src_dec, batch['src']) +
+            translation_loss(src2tgt_dec, batch['tgt'])
         )
 
         # beating discriminator
-        core_loss += weights['dicriminator'] * (
+        core_loss += weights[2] * (
             classification_loss(self.discriminator(src2src_enc), 'tgt') +
             classification_loss(self.discriminator(tgt2tgt_enc), 'src') +
             classification_loss(self.discriminator(tgt2src_enc), 'src') +
@@ -78,17 +94,18 @@ class Trainer:
 
         # update general model's parameters
         self.core_optimizer.zero_grad()
-        core_loss.backward()
+        core_loss.backward(retain_graph=True)
         self.core_optimizer.step()
 
         # update discriminator parameters
         self.discriminator_optimizer.zero_grad()
-        discriminator_loss.backward()
+        discriminator_loss.backward(retain_graph=True)
         self.discriminator_optimizer.step()
 
-    @staticmethod
-    def _log_probs2indices(decoder_outputs):
-        return decoder_outputs.topk(1)[1].squeeze(-1)
+
+
+
+
 
 
 

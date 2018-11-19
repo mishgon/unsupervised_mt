@@ -66,10 +66,11 @@ def noise_sentence(sentence: List[int], pad_index, drop_probability=0.1, permuta
 
 
 def noise(batch: torch.Tensor, pad_index, drop_probability=0.1, permutation_constraint=3):
+    device = batch.device
     batch = batch.transpose(0, 1).tolist()
     batch = [noise_sentence(s, pad_index, drop_probability, permutation_constraint) for s in batch]
     batch = pad_monolingual_batch(batch, pad_index)
-    return torch.tensor(batch, dtype=torch.long).transpose(0, 1)
+    return torch.tensor(batch, dtype=torch.long, device=device).transpose(0, 1)
 
 
 def log_probs2indices(decoder_outputs):

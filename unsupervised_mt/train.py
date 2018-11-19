@@ -50,6 +50,8 @@ class Trainer:
         self.discriminator_optimizer = SGD(self.discriminator.parameters(), lr=lr_disc)
 
     def train_step(self, batch, weights=(1, 1, 1), drop_probability=0.1, permutation_constraint=3):
+        batch = {l: t.to(self.device) for l, t in batch.items()}
+
         src2src_dec, src2src_enc = self.src2src(
             noise(batch['src'], self.src_pad_index, drop_probability, permutation_constraint),
             self.src_sos_index, batch['src']

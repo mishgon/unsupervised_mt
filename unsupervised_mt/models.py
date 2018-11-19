@@ -144,7 +144,7 @@ class Decoder(nn.Module):
             output, hidden = self.step(input, hidden, encoder_outputs)
             outputs.append(output.unsqueeze(0))
             input = torch.topk(output, k=1)[1].squeeze(-1)
-            ended += (input == eos_index).numpy()
+            ended += (input == eos_index).cpu().numpy() if self.use_cuda else (input == eos_index).numpy()
             if n_iters is not None:
                 n_iters -= 1
 

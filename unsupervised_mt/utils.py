@@ -20,13 +20,13 @@ def normalize_string(s):
     return s.strip()
 
 
-def load_embeddings(emb_path, language, encoding='utf-8', newline='\n', errors='ignore'):
+def load_embeddings(emb_path, encoding='utf-8', newline='\n', errors='ignore'):
     word2emb = dict()
     with io.open(emb_path, 'r', encoding=encoding, newline=newline, errors=errors) as f:
         emb_dim = int(f.readline().split()[1])
         for w in ['<sos>', '<eos>', '<unk>', '<pad>']:
-            word2emb[language + '-' + w] = np.random.uniform(0, 1, size=emb_dim)
-            word2emb[language + '-' + w] /= np.linalg.norm(word2emb[language + '-' + w])
+            word2emb[w] = np.random.uniform(0, 1, size=emb_dim)
+            word2emb[w] /= np.linalg.norm(word2emb[w])
 
         for line in f.readlines()[1:]:
             orig_word, emb = line.rstrip().split(' ', 1)
@@ -35,7 +35,7 @@ def load_embeddings(emb_path, language, encoding='utf-8', newline='\n', errors='
 
             # if word is not in dictionary or if it is, but better embedding is provided
             if word not in word2emb or word == orig_word:
-                word2emb[language + '-' + word] = emb
+                word2emb[word] = emb
     return word2emb
 
 

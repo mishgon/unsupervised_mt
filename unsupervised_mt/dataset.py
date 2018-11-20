@@ -20,20 +20,17 @@ class Dataset:
         }
 
         # load embeddings
-        self.word2emb = dict()
-        for language in self.languages:
-            self.word2emb.update(load_embeddings(self.emb_paths[language], language))
+        self.word2emb = {l: load_embeddings(self.emb_paths[l]) for l in self.languages}
 
         # create vocabularies
         self.vocabs = {l: Vocabulary([l]) for l in self.languages}
         for language in self.languages:
-            for sentence in self.sentences[language]:
-                self.vocabs[language].add_sentence(sentence, language,
-                                                   words_filter=lambda w: language + '-' + w in self.word2emb)
+            for word in self.word2emb[language].keys():
+                self.vocabs[language].add_word(word, language)
 
         # embedding matrix
         self.emb_matrix = {
-            l: np.array([self.word2emb[w] for w in self.vocabs[l].index2word], dtype=np.float32)
+            l: np.array([self.word2emb[l][w.split('-', 1)[1]] for w in self.vocabs[l].index2word], dtype=np.float32)
             for l in self.languages
         }
 
@@ -47,7 +44,7 @@ class Dataset:
         if len(self.languages) == 2:
             l1, l2 = self.languages
             self.word2nearest = {l1: [self.get_nearest(index, l1, l2) for index in range(self.vocabs[l1].size)],
-                                l2: [self.get_nearest(index, l2, l1) for index in range(self.vocabs[l2].size)]}
+                                 l2: [self.get_nearest(index, l2, l1) for index in range(self.vocabs[l2].size)]}
 
     def load_sentence(self, language, idx, pad=0):
         return self.vocabs[language].get_indices(self.sentences[language][idx], language=language, pad=pad)
@@ -77,8 +74,8 @@ class Dataset:
         elif index == self.get_unk_index(language1):
             return self.get_unk_index(language2)
         else:
-            word = self.vocabs[language1].index2word[index]
-            return np.argmin(np.sum((self.emb_matrix[language2] - self.word2emb[word]) ** 2, axis=1))
+            word = self.vocabs[language1].index2word[index].split('-', 1)[1]
+            return np.argmax(self.emb_matrix[language2] @ self.word2emb[language1][word])
 
     def translate_sentence_word_by_word(self, sentence, language):
         return [self.word2nearest[language][index] for index in sentence]
@@ -96,13 +93,6 @@ class Dataset:
         batch = batch.transpose(0, 1).tolist()
         for sentence in batch:
             self.print_sentence(sentence, language)
-
-    def load_one_hot_sentence(self, language, idx, pad=0):
-        return np.eye(self.vocabs[language].size)[self.load_sentence(language, idx, pad=pad)]
-
-    def load_embeddings(self, language, idx, pad=0):
-        return np.array([self.word2emb[self.vocabs[language].index2word[index]]
-                         for index in self.load_sentence(language, idx, pad)])
 
 
 

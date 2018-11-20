@@ -26,6 +26,7 @@ def load_embeddings(emb_path, language, encoding='utf-8', newline='\n', errors='
         emb_dim = int(f.readline().split()[1])
         for w in ['<sos>', '<eos>', '<unk>', '<pad>']:
             word2emb[language + '-' + w] = np.random.uniform(0, 1, size=emb_dim)
+            word2emb[language + '-' + w] /= np.linalg.norm(word2emb[language + '-' + w])
 
         for line in f.readlines()[1:]:
             orig_word, emb = line.rstrip().split(' ', 1)

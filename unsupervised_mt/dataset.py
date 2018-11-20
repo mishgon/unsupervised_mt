@@ -43,6 +43,12 @@ class Dataset:
         self.test_ids = {l: self.ids[l][:test_size] for l in self.languages}
         self.train_ids = {l: self.ids[l][test_size:] for l in self.languages}
 
+        # word to nearest word in another language
+        if len(self.languages) == 2:
+            l1, l2 = self.languages
+            self.word2nearest = {l1: [self.get_nearest(index, l1, l2) for index in range(self.vocabs[l1].size)],
+                                l2: [self.get_nearest(index, l2, l1) for index in range(self.vocabs[l2].size)]}
+
     def load_sentence(self, language, idx, pad=0):
         return self.vocabs[language].get_indices(self.sentences[language][idx], language=language, pad=pad)
 
@@ -61,7 +67,7 @@ class Dataset:
     def get_unk_index(self, language):
         return self.vocabs[language].get_unk(language)
 
-    def word2nearest_word(self, index, language1, language2):
+    def get_nearest(self, index, language1, language2):
         if index == self.get_sos_index(language1):
             return self.get_sos_index(language2)
         elif index == self.get_eos_index(language1):
@@ -74,13 +80,13 @@ class Dataset:
             word = self.vocabs[language1].index2word[index]
             return np.argmin(np.sum((self.emb_matrix[language2] - self.word2emb[word]) ** 2, axis=1))
 
-    def translate_sentence_word_by_word(self, sentence, language1, language2):
-        return [self.word2nearest_word(index, language1, language2) for index in sentence]
+    def translate_sentence_word_by_word(self, sentence, language):
+        return [self.word2nearest[language][index] for index in sentence]
 
-    def translate_batch_word_by_word(self, batch, language1, language2):
+    def translate_batch_word_by_word(self, batch, language):
         device = batch.device
         batch = batch.transpose(0, 1).tolist()
-        batch = [self.translate_sentence_word_by_word(s, language1, language2) for s in batch]
+        batch = [self.translate_sentence_word_by_word(s, language) for s in batch]
         return torch.tensor(batch, dtype=torch.long, device=device).transpose(0, 1)
 
     def print_sentence(self, sentence, language):

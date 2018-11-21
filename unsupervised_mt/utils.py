@@ -24,9 +24,9 @@ def load_embeddings(emb_path, encoding='utf-8', newline='\n', errors='ignore'):
     word2emb = dict()
     with io.open(emb_path, 'r', encoding=encoding, newline=newline, errors=errors) as f:
         emb_dim = int(f.readline().split()[1])
-        for w in ['<sos>', '<eos>', '<unk>', '<pad>']:
-            word2emb[w] = np.random.uniform(0, 1, size=emb_dim)
-            word2emb[w] /= np.linalg.norm(word2emb[w])
+        for word in ['<sos>', '<eos>', '<unk>', '<pad>']:
+            word2emb[word] = np.random.uniform(0, 1, size=emb_dim)
+            word2emb[word] /= np.linalg.norm(word2emb[word])
 
         for line in f.readlines()[1:]:
             orig_word, emb = line.rstrip().split(' ', 1)
@@ -43,6 +43,15 @@ def load_sentences(corp_path, max_length=10, encoding='utf-8', newline='\n', err
     with io.open(corp_path, 'r', encoding=encoding, newline=newline, errors=errors) as f:
         sentences = list(map(normalize_string, f.readlines()))
     return list(filter(lambda s: len(s.split(' ')) < max_length, sentences))
+
+
+def load_word2nearest(path):
+    word2nearest = dict()
+    for word in ['<sos>', '<eos>', '<unk>', '<pad>']:
+        word2nearest[word] = word
+    with io.open(path, 'r') as f:
+        word2nearest.update(dict(list(map(lambda line: line.strip().split(' ', 1), f.readlines()))))
+    return word2nearest
 
 
 def pad_monolingual_batch(batch: List[int], pad_index):

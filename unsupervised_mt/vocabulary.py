@@ -34,15 +34,14 @@ class Vocabulary:
         else:
             return self.get_unk(language)
 
-    def add_sentence(self, sentence, language, words_filter):
-        for word in sentence.strip().split():
-            self.add_word(word, language, words_filter)
+    def get_word(self, index):
+        return self.index2word[index].split('-', 1)[1]
 
     def add_word(self, word, language, words_filter=lambda w: True):
         if words_filter(word):
             word = language + '-' + word
             if word not in self.word2index:
-                self.word2index[word] = len(self.index2word)
+                self.word2index[word] = self.size
                 self.word2count[word] += 1
                 self.index2word.append(word)
                 self.size += 1

@@ -95,7 +95,7 @@ class Trainer:
                              classification_loss(self.discriminator(tgt2src_enc), 'tgt') + \
                              classification_loss(self.discriminator(src2tgt_enc), 'src')
 
-        # update general model's parameters
+        # update core model's parameters
         self.core_optimizer.zero_grad()
         core_loss.backward(retain_graph=True)
         self.core_optimizer.step()

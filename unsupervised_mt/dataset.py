@@ -25,7 +25,10 @@ class Dataset:
         self.word2emb = {l: load_embeddings(self.emb_paths[l]) for l in self.languages}
 
         # load word2nearest
-        self.word2nearest = {l: load_word2nearest(self.pairs_paths[l]) for l in self.languages}
+        #self.word2nearest = {l: load_word2nearest(self.pairs_paths[l]) for l in self.languages}
+        self.word2nearest = {l: np.load(self.pairs_paths[l]).item() for l in self.languages}
+        for l in self.languages:
+            self.word2nearest[l].update({w: w for w in ['<sos>', '<eos>', '<pad>', '<unk>']})
 
         # create vocabularies (including only words from targets,
         # i.e. src vocabulary contains all words having embedding from src sentences
@@ -77,11 +80,13 @@ class Dataset:
             return list(self.word2emb[l2].keys())[idx]
 
     def save_nearest(self, l1, l2):
+        words = set()
         with io.open(l1 + '2' + l2 + '.txt', 'x') as f:
             for sentence in self.sentences[l1]:
                 for word in sentence.strip().split():
-                    if word in self.word2emb[l1]:
+                    if word in self.word2emb[l1] and word not in words:
                         f.write(word + ' ' + self.get_nearest(word, l1, l2) + '\n')
+                        words.add(word)
 
     def translate_sentence_word_by_word(self, sentence, l1, l2):
         sentence = [self.vocabs[l1].index2word[index].split('-', 1)[1] for index in sentence]

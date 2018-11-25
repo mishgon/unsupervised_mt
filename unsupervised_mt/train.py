@@ -14,7 +14,7 @@ class Trainer:
                  src_hat: DecoderHat, tgt_hat: DecoderHat, discriminator: Discriminator,
                  src_sos_index, tgt_sos_index, src_eos_index, tgt_eos_index, src_pad_index, tgt_pad_index,
                  device, lr_core=1e-3, lr_disc=1e-3):
-        assert discriminator.hidden_size == encoder_rnn.hidden_size
+        assert discriminator.hidden_size == (encoder_rnn.bidirectional + 1) * encoder_rnn.hidden_size
 
         self.frozen_src2tgt = frozen_src2tgt
         self.frozen_tgt2src = frozen_tgt2src
@@ -26,7 +26,7 @@ class Trainer:
         self.src_hat = src_hat
         self.tgt_hat = tgt_hat
         self.core_model = nn.ModuleList([
-            self.encoder_rnn, self.decoder_rnn, self.attention, self.src_hat, self.tgt_hat
+            self.src_embedding,	self.tgt_embedding, self.encoder_rnn, self.decoder_rnn, self.attention, self.src_hat, self.tgt_hat
         ])
         self.discriminator = discriminator
         self.src_sos_index = src_sos_index

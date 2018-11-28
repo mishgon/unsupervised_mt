@@ -54,10 +54,10 @@ class Attention(nn.Module):
     def __init__(self, embedding_dim, hidden_size, max_length, bidirectional=True):
         """
         input: batch_size x vocab_size
-        hidden: 2*n_layers x batch_size x hidden_size
-        encoder_outputs: max_length (<= max_length) x batch_size x  2*hidden_size
+        hidden: (1 or 2)*n_layers x batch_size x hidden_size
+        encoder_outputs: length (<= max_length) x batch_size x (1 or 2)*hidden_size
         attn_weights: batch_size x 1 x max_length
-        attn_applied: batch_size x 1 x 2*hidden_size
+        attn_applied: batch_size x 1 x (1 or 2)*hidden_size
 
         See figure from https://pytorch.org/tutorials/intermediate/seq2seq_translation_tutorial.html
         """
@@ -90,9 +90,9 @@ class Decoder(nn.Module):
     def __init__(self, embedding: Embedding, attention, rnn, hat: DecoderHat, use_cuda=False):
         super(Decoder, self).__init__()
         assert embedding.embedding_dim == rnn.input_size and \
-               embedding.vocab_size == hat.vocab_size and \
-               attention.embedding_dim == embedding.embedding_dim and \
-               hat.hidden_size == (rnn.bidirectional + 1) * rnn.hidden_size
+            embedding.vocab_size == hat.vocab_size and \
+            attention.embedding_dim == embedding.embedding_dim and \
+            hat.hidden_size == (rnn.bidirectional + 1) * rnn.hidden_size
 
         self.embedding = embedding
         self.embedding_dim = embedding.embedding_dim
@@ -105,11 +105,11 @@ class Decoder(nn.Module):
     def step(self, input, hidden, encoder_outputs):
         """
         input: batch_size
-        hidden: 2*n_layers x batch_size x hidden_size
-        encoder_outputs: max_length (<= max_length) x batch_size x hidden_size
+        hidden: (1 or 2)*n_layers x batch_size x hidden_size
+        encoder_outputs: max_length (<= max_length) x batch_size x (1 or 2)*hidden_size
         embedded: batch_size x embedding_dim
         rnn_input: batch_size x embedding_dim
-        output: 1 x batch_size x 2*hidden_size
+        output: 1 x batch_size x (1 or 2)*hidden_size
         """
         embedded = self.embedding(input)
         rnn_input = self.attention(embedded, hidden, encoder_outputs) if self.attention else embedded
@@ -141,8 +141,8 @@ class Decoder(nn.Module):
 
     def evaluate(self, hidden, encoder_outputs, sos_index, eos_index, n_iters=None):
         """
-        hidden: n_layers x batch_size x hidden_size
-        encoder_outputs: length x batch_size x hidden_size
+        hidden: n_layers x batch_size x (1 or 2)*hidden_size
+        encoder_outputs: length x batch_size x (1 or 2)*hidden_size
         input: batch_size
         """
         input = self.init_input(hidden.size(1), sos_index)
@@ -165,8 +165,8 @@ class Seq2Seq(nn.Module):
                  use_cuda=False):
         super(Seq2Seq, self).__init__()
         assert encoder_rnn.hidden_size == decoder_rnn.hidden_size and \
-               encoder_rnn.num_layers == decoder_rnn.num_layers and \
-               encoder_rnn.bidirectional == decoder_rnn.bidirectional
+            encoder_rnn.num_layers == decoder_rnn.num_layers and \
+            encoder_rnn.bidirectional == decoder_rnn.bidirectional
 
         self.encoder = Encoder(encoder_embedding, encoder_rnn)
         self.decoder = Decoder(decoder_embedding, attention, decoder_rnn, decoder_hat, use_cuda)

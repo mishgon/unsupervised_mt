@@ -102,9 +102,10 @@ class Trainer:
 
         # update discriminator parameters
         self.discriminator_optimizer.zero_grad()
-        discriminator_loss.backward(retain_graph=True)
+        discriminator_loss.backward()
         self.discriminator_optimizer.step()
 
+        return core_loss.item(), discriminator_loss.item()
 
 
 

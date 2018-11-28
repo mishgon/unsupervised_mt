@@ -15,20 +15,10 @@ class Dataset:
         self.max_length = max_length
         self.train_fraction = train_fraction
 
-        # load sentences
-        self.sentences = {
-            l: load_sentences(self.corp_paths[l], max_length=self.max_length)
-            for l in self.languages
-        }
-
-        # load embeddings
+        # load sentences, embeddings and saved word2nearest
+        self.sentences = {l: load_sentences(self.corp_paths[l], self.max_length) for l in self.languages}
         self.word2emb = {l: load_embeddings(self.emb_paths[l]) for l in self.languages}
-
-        # load word2nearest
-        #self.word2nearest = {l: load_word2nearest(self.pairs_paths[l]) for l in self.languages}
-        self.word2nearest = {l: np.load(self.pairs_paths[l]).item() for l in self.languages}
-        for l in self.languages:
-            self.word2nearest[l].update({w: w for w in ['<sos>', '<eos>', '<pad>', '<unk>']})
+        self.word2nearest = {l: load_word2nearest(self.pairs_paths[l]) for l in self.languages}
 
         # create vocabularies (including only words from targets,
         # i.e. src vocabulary contains all words having embedding from src sentences
@@ -43,8 +33,7 @@ class Dataset:
 
         # embedding matrices
         self.emb_matrix = {
-            l: np.array([self.word2emb[l][w.split('-', 1)[1]]
-                         for w in self.vocabs[l].index2word], dtype=np.float32)
+            l: np.array([self.word2emb[l][w.split('-', 1)[1]] for w in self.vocabs[l].index2word], dtype=np.float32)
             for l in self.languages
         }
 
@@ -79,14 +68,13 @@ class Dataset:
             idx = np.argmax(np.array(list(self.word2emb[l2].values())) @ self.word2emb[l1][word])
             return list(self.word2emb[l2].keys())[idx]
 
-    def save_nearest(self, l1, l2):
-        words = set()
-        with io.open(l1 + '2' + l2 + '.txt', 'x') as f:
-            for sentence in self.sentences[l1]:
-                for word in sentence.strip().split():
-                    if word in self.word2emb[l1] and word not in words:
-                        f.write(word + ' ' + self.get_nearest(word, l1, l2) + '\n')
-                        words.add(word)
+    def save_word2nearest(self, path, l1, l2):
+        word2nearest = dict()
+        for sentence in self.sentences[l1]:
+            for word in sentence.strip().split():
+                if word in self.word2emb[l1] and word not in word2nearest:
+                    word2nearest[word] = self.get_nearest(word, l1, l2)
+        np.save(path, word2nearest)
 
     def translate_sentence_word_by_word(self, sentence, l1, l2):
         sentence = [self.vocabs[l1].index2word[index].split('-', 1)[1] for index in sentence]

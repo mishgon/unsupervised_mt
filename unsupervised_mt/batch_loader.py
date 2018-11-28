@@ -3,7 +3,7 @@ import torch
 from unsupervised_mt.utils import pad_monolingual_batch
 
 
-class BatchIterator:
+class BatchLoader:
     def __init__(self, dataset):
         self.languages = dataset.languages
         self.load_sentence = dataset.load_sentence

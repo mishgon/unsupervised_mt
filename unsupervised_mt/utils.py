@@ -49,8 +49,7 @@ def load_word2nearest(path):
     word2nearest = dict()
     for word in ['<sos>', '<eos>', '<unk>', '<pad>']:
         word2nearest[word] = word
-    with io.open(path, 'r') as f:
-        word2nearest.update(dict(list(map(lambda line: line.strip().split(' ', 1), f.readlines()))))
+    word2nearest.update(np.load(path).item())
     return word2nearest
 
 

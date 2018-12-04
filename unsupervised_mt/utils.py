@@ -4,6 +4,7 @@ import re
 import numpy as np
 from typing import List
 import torch
+from sklearn.model_selection import train_test_split
 
 
 def unicode_to_ascii(s):
@@ -39,10 +40,25 @@ def load_embeddings(emb_path, encoding='utf-8', newline='\n', errors='ignore'):
     return word2emb
 
 
-def load_sentences(corp_path, max_length=10, encoding='utf-8', newline='\n', errors='ignore'):
-    with io.open(corp_path, 'r', encoding=encoding, newline=newline, errors=errors) as f:
-        sentences = list(map(normalize_string, f.readlines()))
-    return list(filter(lambda s: len(s.split(' ')) < max_length, sentences))
+def load_train_and_test(src_path, tgt_path, max_length, test_size, random_state=42,
+                        encoding='utf-8', newline='\n', errors='ignore'):
+    with io.open(src_path, 'r', encoding=encoding, newline=newline, errors=errors) as f:
+        src_sentences = list(map(normalize_string, f.readlines()))
+    with io.open(tgt_path, 'r', encoding=encoding, newline=newline, errors=errors) as f:
+        tgt_sentences = list(map(normalize_string, f.readlines()))
+
+    assert len(src_sentences) == len(tgt_sentences)
+
+    train_src, test_src, train_tgt, test_tgt = train_test_split(src_sentences, tgt_sentences,
+                                                                test_size=test_size, random_state=random_state)
+    test = list(zip(test_src, test_tgt))
+    train = {l: list(filter(lambda s: len(s.split(' ')) < max_length, sentences))
+             for l, sentences in zip(['src', 'tgt'], [train_src, train_tgt])}
+
+    for sentences in train.values():
+        np.random.shuffle(sentences)
+
+    return train, test
 
 
 def load_word2nearest(path):

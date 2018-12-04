@@ -1,22 +1,22 @@
 import numpy as np
 import torch
 
-from unsupervised_mt.utils import load_sentences, load_embeddings, load_word2nearest
+from unsupervised_mt.utils import load_embeddings, load_word2nearest, load_train_and_test
 import io
 from unsupervised_mt.vocabulary import Vocabulary
 
 
 class Dataset:
-    def __init__(self, languages, corp_paths, emb_paths, pairs_paths, max_length=10, train_fraction=0.9):
-        self.languages = languages
+    def __init__(self, corp_paths, emb_paths, pairs_paths, max_length=10, test_size=0.1):
+        self.languages = ['src', 'tgt']
         self.corp_paths = {l: p for l, p in zip(self.languages, corp_paths)}
         self.emb_paths = {l: p for l, p in zip(self.languages, emb_paths)}
         self.pairs_paths = {l: p for l, p in zip(self.languages, pairs_paths)}
         self.max_length = max_length
-        self.train_fraction = train_fraction
+        self.test_size = test_size
 
         # load sentences, embeddings and saved word2nearest
-        self.sentences = {l: load_sentences(self.corp_paths[l], self.max_length) for l in self.languages}
+        self.train, self.test = load_train_and_test(*corp_paths, self.max_length, self.test_size, random_state=42)
         self.word2emb = {l: load_embeddings(self.emb_paths[l]) for l in self.languages}
         self.word2nearest = {l: load_word2nearest(self.pairs_paths[l]) for l in self.languages}
 
@@ -25,7 +25,7 @@ class Dataset:
         # and all words from translations of tgt sentences via embedding)
         self.vocabs = {l: Vocabulary([l]) for l in self.languages}
         for l1, l2 in zip(self.languages, self.languages[::-1]):
-            for sentence in self.sentences[l1]:
+            for sentence in self.train[l1]:
                 for word in sentence.strip().split():
                     if word in self.word2emb[l1]:
                         self.vocabs[l1].add_word(word, l1)
@@ -37,14 +37,8 @@ class Dataset:
             for l in self.languages
         }
 
-        # split
-        self.ids = {l: list(range(len(self.sentences[l]))) for l in self.languages}
-        test_size = int((1 - self.train_fraction) * np.min([len(self.ids[l]) for l in self.languages]))
-        self.test_ids = {l: self.ids[l][:test_size] for l in self.languages}
-        self.train_ids = {l: self.ids[l][test_size:] for l in self.languages}
-
     def load_sentence(self, language, idx, pad=0):
-        return self.vocabs[language].get_indices(self.sentences[language][idx], language=language, pad=pad)
+        return self.vocabs[language].get_indices(self.train[language][idx], language=language, pad=pad)
 
     def load_len(self, language, idx):
         return len(self.load_sentence(language, idx))
@@ -70,7 +64,7 @@ class Dataset:
 
     def save_word2nearest(self, path, l1, l2):
         word2nearest = dict()
-        for sentence in self.sentences[l1]:
+        for sentence in self.train[l1]:
             for word in sentence.strip().split():
                 if word in self.word2emb[l1] and word not in word2nearest:
                     word2nearest[word] = self.get_nearest(word, l1, l2)

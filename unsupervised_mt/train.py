@@ -3,6 +3,7 @@ from unsupervised_mt.models import Embedding, Encoder, DecoderHat, \
 from unsupervised_mt.losses import translation_loss, classification_loss
 from unsupervised_mt.utils import noise, log_probs2indices
 
+import torch
 import torch.nn as nn
 from torch.optim import SGD
 
@@ -106,6 +107,12 @@ class Trainer:
         self.discriminator_optimizer.step()
 
         return core_loss.item(), discriminator_loss.item()
+
+    def save(self, directory):
+        for layer, name in [(eval('self.' + name), name)
+                            for name in ['src_embedding', 'tgt_embedding', 'encoder_rnn', 'decoder_rn',
+                                         'attention', 'src_hat', 'tgt_hat', 'discriminator']]:
+            torch.save(layer.state_dict(), directory + name)
 
 
 

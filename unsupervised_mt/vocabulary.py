@@ -48,7 +48,7 @@ class Vocabulary:
             else:
                 self.word2count[word] += 1
 
-    def get_indices(self, sentence, language, pad):
+    def get_indices(self, sentence, language, pad=0):
         return [self.get_index(w, language) for w in sentence.strip().split()] +\
                [self.get_eos(language)] + pad * [self.get_pad(language)]
 

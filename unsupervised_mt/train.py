@@ -108,6 +108,12 @@ class Trainer:
 
         return core_loss.item(), discriminator_loss.item()
 
+    def load(self, directory):
+        for layer, name in [(self.__getattribute__(name), name)
+                            for name in ['src_embedding', 'tgt_embedding', 'encoder_rnn', 'decoder_rn',
+                                         'attention', 'src_hat', 'tgt_hat', 'discriminator']]:
+            layer.load_state_dict(torch.load(directory + name))
+
     def save(self, directory):
         for layer, name in [(self.__getattribute__(name), name)
                             for name in ['src_embedding', 'tgt_embedding', 'encoder_rnn', 'decoder_rn',

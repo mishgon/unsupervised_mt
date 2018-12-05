@@ -51,7 +51,10 @@ def load_train_and_test(src_path, tgt_path, max_length, test_size, random_state=
 
     train_src, test_src, train_tgt, test_tgt = train_test_split(src_sentences, tgt_sentences,
                                                                 test_size=test_size, random_state=random_state)
-    test = list(zip(test_src, test_tgt))
+    test = list(filter(
+        lambda p: len(p[0].split(' ')) < max_length and len(p[1].split(' ')) < max_length,
+        zip(test_src, test_tgt)
+    ))
     train = {l: list(filter(lambda s: len(s.split(' ')) < max_length, sentences))
              for l, sentences in zip(['src', 'tgt'], [train_src, train_tgt])}
 

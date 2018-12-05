@@ -37,11 +37,9 @@ class Dataset:
             for l in self.languages
         }
 
-    def load_sentence(self, language, idx, pad=0):
-        return self.vocabs[language].get_indices(self.train[language][idx], language=language, pad=pad)
-
-    def load_len(self, language, idx):
-        return len(self.load_sentence(language, idx))
+    def load_sentence(self, language, idx, pad=0, test=False):
+        sentence = self.test[idx][0 if language == 'src' else 1] if test else self.train[language][idx]
+        return self.vocabs[language].get_indices(sentence, language=language, pad=pad)
 
     def get_sos_index(self, language):
         return self.vocabs[language].get_sos(language)

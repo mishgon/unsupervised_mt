@@ -49,8 +49,8 @@ def load_train_and_test(src_path, tgt_path, max_length, test_size, random_state=
 
     assert len(src_sentences) == len(tgt_sentences)
 
-    train_src, test_src, train_tgt, test_tgt = train_test_split(src_sentences, tgt_sentences,
-                                                                test_size=test_size, random_state=random_state)
+    np.random.seed(random_state)
+    train_src, test_src, train_tgt, test_tgt = train_test_split(src_sentences, tgt_sentences, test_size=test_size)
     test = list(filter(
         lambda p: len(p[0].split(' ')) < max_length and len(p[1].split(' ')) < max_length,
         zip(test_src, test_tgt)
@@ -59,7 +59,7 @@ def load_train_and_test(src_path, tgt_path, max_length, test_size, random_state=
              for l, sentences in zip(['src', 'tgt'], [train_src, train_tgt])}
 
     for sentences in train.values():
-        np.random.shuffle(sentences)
+        np.random.shuffle(sentences, random_state=random_state)
 
     return train, test
 

@@ -2,7 +2,6 @@ import numpy as np
 import torch
 
 from unsupervised_mt.utils import load_embeddings, load_word2nearest, load_train_and_test
-import io
 from unsupervised_mt.vocabulary import Vocabulary
 
 

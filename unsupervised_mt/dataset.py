@@ -80,12 +80,12 @@ class Dataset:
         batch = [self.translate_sentence_word_by_word(s, l1, l2) for s in batch]
         return torch.tensor(batch, dtype=torch.long, device=device).transpose(0, 1)
 
-    def get_words_from_sentence(self, sentence, language):
-        return [self.vocabs[language].index2word[index].split('-', 1)[1] for index in sentence]
+    def visualize_sentence(self, sentence, language):
+        return ' '.join([self.vocabs[language].index2word[index].split('-', 1)[1] for index in sentence])
 
-    def get_words_from_batch(self, batch, language):
+    def visualize_batch(self, batch, language):
         batch = batch.transpose(0, 1).tolist()
-        return [self.get_words_from_sentence(sentence, language) for sentence in batch]
+        return [self.visualize_sentence(sentence, language) for sentence in batch]
 
 
 

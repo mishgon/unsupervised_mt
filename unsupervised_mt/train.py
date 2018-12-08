@@ -6,6 +6,7 @@ from unsupervised_mt.utils import noise, log_probs2indices
 import torch
 import torch.nn as nn
 from torch.optim import SGD
+import time
 
 
 class Trainer:
@@ -121,12 +122,15 @@ class Trainer:
             torch.save(layer.state_dict(), directory + name)
 
     def predict_on_batch(self, batch):
+        time.sleep(1)
+        torch.cuda.empty_cache()
         batch = {l: t.to(self.device) for l, t in batch.items()}
         pred = {'src': log_probs2indices(self.src2tgt.evaluate(batch['src'], self.tgt_sos_index, self.tgt_eos_index)),
                 'tgt': log_probs2indices(self.tgt2src.evaluate(batch['tgt'], self.src_sos_index, self.src_eos_index))}
         return pred
 
     def predict_on_test(self, batch_iter, batch_size, visualize, l1='src', l2='tgt'):
+        self.core_model.eval()
         predict = []
         for i in range(0, len(batch_iter.test_ids), batch_size):
             batch = batch_iter.load_batch(0, test=True, ids=batch_iter.test_ids[i:i + batch_size])

@@ -80,7 +80,9 @@ class Dataset:
         return torch.tensor(batch, dtype=torch.long, device=device).transpose(0, 1)
 
     def visualize_sentence(self, sentence, language):
-        return ' '.join([self.vocabs[language].index2word[index].split('-', 1)[1] for index in sentence])
+        return ' '.join([self.vocabs[language].index2word[index].split('-', 1)[1]
+                         for index in sentence
+                         if index != self.get_eos_index(language) and index != self.get_pad_index(language)])
 
     def visualize_batch(self, batch, language):
         batch = batch.transpose(0, 1).tolist()

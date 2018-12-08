@@ -120,6 +120,15 @@ class Trainer:
                                          'attention', 'src_hat', 'tgt_hat', 'discriminator']]:
             torch.save(layer.state_dict(), directory + name)
 
+    def predict_on_test(self, batch_iter, batch_size, visualize, l1='src', l2='tgt'):
+        predict = []
+        for i in range(0, len(batch_iter.test_ids), batch_size):
+            batch = batch_iter.load_batch(0, test=True, ids=batch_iter.test_ids[i:i + batch_size])[l1].to(self.device)
+            pred = log_probs2indices(self.src2tgt.evaluate(batch, self.tgt_sos_index, self.tgt_eos_index))
+            predict += visualize(pred, l2)
+
+        return predict
+
 
 
 

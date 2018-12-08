@@ -85,7 +85,7 @@ class Dataset:
                          if index != self.get_eos_index(language) and index != self.get_pad_index(language)])
 
     def visualize_batch(self, batch, language):
-        batch = batch.transpose(0, 1).tolist()
+        batch = batch.transpose(0, 1).cpu().tolist()
         return [self.visualize_sentence(sentence, language) for sentence in batch]
 
 

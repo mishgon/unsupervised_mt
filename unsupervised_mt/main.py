@@ -18,6 +18,7 @@ ds = Dataset(corp_paths=('../data/train.lc.norm.tok.en', '../data/train.lc.norm.
              emb_paths=('../data/wiki.multi.en.vec', '../data/wiki.multi.fr.vec'),
              pairs_paths=('../data/train_test_src2tgt.npy', '../data/train_test_tgt2src.npy'),
              max_length=20, test_size=0.1)
+print('finish loading dataset')
 
 # batch iterator
 batch_iter = BatchLoader(ds)
@@ -47,8 +48,10 @@ trainer = Trainer(partial(ds.translate_batch_word_by_word, l1='src', l2='tgt'),
                   ds.get_pad_index('src'), ds.get_pad_index('tgt'),
                   device, lr_core=1e-3, lr_disc=1e-3)
 trainer.load('../saved_models/final_result1/')
+print('finish initializing models')
 
 # predict
 predictions = trainer.predict_on_test(batch_iter, batch_size=50, visualize=ds.visualize_batch)
 with io.open('predictions', 'w') as f:
     print(*predictions, sep='\n', file=f)
+print('finish predicting')

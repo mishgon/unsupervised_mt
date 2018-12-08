@@ -59,7 +59,7 @@ def load_train_and_test(src_path, tgt_path, max_length, test_size, random_state=
              for l, sentences in zip(['src', 'tgt'], [train_src, train_tgt])}
 
     for sentences in train.values():
-        np.random.shuffle(sentences, random_state=random_state)
+        np.random.shuffle(sentences)
 
     return train, test
 

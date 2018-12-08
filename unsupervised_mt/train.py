@@ -110,13 +110,13 @@ class Trainer:
 
     def load(self, directory):
         for layer, name in [(self.__getattribute__(name), name)
-                            for name in ['src_embedding', 'tgt_embedding', 'encoder_rnn', 'decoder_rn',
+                            for name in ['src_embedding', 'tgt_embedding', 'encoder_rnn', 'decoder_rnn',
                                          'attention', 'src_hat', 'tgt_hat', 'discriminator']]:
             layer.load_state_dict(torch.load(directory + name))
 
     def save(self, directory):
         for layer, name in [(self.__getattribute__(name), name)
-                            for name in ['src_embedding', 'tgt_embedding', 'encoder_rnn', 'decoder_rn',
+                            for name in ['src_embedding', 'tgt_embedding', 'encoder_rnn', 'decoder_rnn',
                                          'attention', 'src_hat', 'tgt_hat', 'discriminator']]:
             torch.save(layer.state_dict(), directory + name)
 

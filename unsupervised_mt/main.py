@@ -8,6 +8,7 @@ import io
 from functools import partial
 import torch
 import torch.nn as nn
+from tqdm import tqdm
 
 # device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -24,7 +25,7 @@ print('finish loading dataset')
 batch_iter = BatchLoader(ds)
 
 # models
-hidden_size = 100
+hidden_size = 300
 num_layers = 3
 
 src_embedding = Embedding(ds.emb_matrix['src']).to(device)
@@ -47,11 +48,24 @@ trainer = Trainer(partial(ds.translate_batch_word_by_word, l1='src', l2='tgt'),
                   ds.get_eos_index('src'), ds.get_eos_index('tgt'),
                   ds.get_pad_index('src'), ds.get_pad_index('tgt'),
                   device, lr_core=1e-3, lr_disc=1e-3)
-trainer.load('../saved_models/final_result1/')
+#trainer.load('../saved_models/final_result1/')
 print('finish initializing models')
 
+# training
+batch_size = 10
+num_steps = 50000
+
+core_losses = []
+disc_losses = []
+for i in tqdm(range(num_steps)):
+    core_loss, disc_loss = trainer.train_step(batch_iter.load_batch(batch_size), weights=(1, 1, 1))
+    core_losses.append(core_loss)
+    disc_losses.append(disc_loss)
+
+trainer.save('../saved_models/hidden_300/')
+
 # predict
-predictions = trainer.predict_on_test(batch_iter, batch_size=50, visualize=ds.visualize_batch)
-with io.open('predictions', 'w') as f:
-    print(*predictions, sep='\n', file=f)
-print('finish predicting')
+#predictions = trainer.predict_on_test(batch_iter, batch_size=50, visualize=ds.visualize_batch, n_iters=30)
+#with io.open('predictions', 'w') as f:
+#    print(*predictions, sep='\n', file=f)
+#print('finish predicting')

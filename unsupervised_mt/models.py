@@ -195,7 +195,7 @@ class Discriminator(nn.Module):
 
     def forward(self, encoder_outputs):
         outputs = []
-        for t in range(encoder_outputs.size(0)):
+        for t in range(encoder_outputs.size(0))[-1:]:
             outputs.append(self.layers(encoder_outputs[t]).unsqueeze(0))
 
         return torch.cat(outputs)

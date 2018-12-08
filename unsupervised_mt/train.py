@@ -27,7 +27,8 @@ class Trainer:
         self.src_hat = src_hat
         self.tgt_hat = tgt_hat
         self.core_model = nn.ModuleList([
-            self.src_embedding,	self.tgt_embedding, self.encoder_rnn, self.decoder_rnn, self.attention, self.src_hat, self.tgt_hat
+            self.src_embedding,	self.tgt_embedding, self.encoder_rnn, self.decoder_rnn,
+            self.attention, self.src_hat, self.tgt_hat
         ])
         self.discriminator = discriminator
         self.src_sos_index = src_sos_index
@@ -91,10 +92,11 @@ class Trainer:
         )
 
         # training discriminator
-        discriminator_loss = classification_loss(self.discriminator(src2src_enc), 'src') + \
-                             classification_loss(self.discriminator(tgt2tgt_enc), 'tgt') + \
-                             classification_loss(self.discriminator(tgt2src_enc), 'tgt') + \
-                             classification_loss(self.discriminator(src2tgt_enc), 'src')
+        discriminator_loss = \
+            classification_loss(self.discriminator(src2src_enc), 'src') + \
+            classification_loss(self.discriminator(tgt2tgt_enc), 'tgt') + \
+            classification_loss(self.discriminator(tgt2src_enc), 'tgt') + \
+            classification_loss(self.discriminator(src2tgt_enc), 'src')
 
         # update core model's parameters
         self.core_optimizer.zero_grad()
@@ -103,7 +105,7 @@ class Trainer:
 
         # update discriminator parameters
         self.discriminator_optimizer.zero_grad()
-        discriminator_loss.backward()
+        discriminator_loss.backward(retain_graph=True)
         self.discriminator_optimizer.step()
 
         return core_loss.item(), discriminator_loss.item()
@@ -125,7 +127,7 @@ class Trainer:
                  ('tgt', 'src'): self.tgt2src, ('tgt', 'tgt'): self.tgt2tgt}[(l1, l2)]
         sos_index, eos_index = (self.src_sos_index, self.src_eos_index) if l2 == 'src' \
             else (self.tgt_sos_index, self.tgt_eos_index)
-        return log_probs2indices(model.evaluate(batch, sos_index, eos_index, n_iters=n_iters))
+        return log_probs2indices(model.evaluate(batch.to(self.device), sos_index, eos_index, n_iters=n_iters))
 
     def predict_on_test(self, batch_iter, batch_size, visualize, l1='src', l2='tgt', n_iters=None):
         predict = []

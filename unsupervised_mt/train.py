@@ -6,7 +6,6 @@ from unsupervised_mt.utils import noise, log_probs2indices
 import torch
 import torch.nn as nn
 from torch.optim import SGD
-import time
 
 
 class Trainer:
@@ -121,21 +120,18 @@ class Trainer:
                                          'attention', 'src_hat', 'tgt_hat', 'discriminator']]:
             torch.save(layer.state_dict(), directory + name)
 
-    def predict_on_batch(self, batch):
-        time.sleep(1)
-        torch.cuda.empty_cache()
-        batch = {l: t.to(self.device) for l, t in batch.items()}
-        pred = {'src': log_probs2indices(self.src2tgt.evaluate(batch['src'], self.tgt_sos_index, self.tgt_eos_index)),
-                'tgt': log_probs2indices(self.tgt2src.evaluate(batch['tgt'], self.src_sos_index, self.src_eos_index))}
-        return pred
+    def predict(self, batch, l1='src', l2='tgt', n_iters=None):
+        model = {('src', 'src'): self.src2src, ('src', 'tgt'): self.src2tgt,
+                 ('tgt', 'src'): self.tgt2src, ('tgt', 'tgt'): self.tgt2tgt}[(l1, l2)]
+        sos_index, eos_index = (self.src_sos_index, self.src_eos_index) if l2 == 'src' \
+            else (self.tgt_sos_index, self.tgt_eos_index)
+        return log_probs2indices(model.evaluate(batch, sos_index, eos_index, n_iters=n_iters))
 
-    def predict_on_test(self, batch_iter, batch_size, visualize, l1='src', l2='tgt'):
-        self.core_model.eval()
+    def predict_on_test(self, batch_iter, batch_size, visualize, l1='src', l2='tgt', n_iters=None):
         predict = []
         for i in range(0, len(batch_iter.test_ids), batch_size):
-            batch = batch_iter.load_batch(0, test=True, ids=batch_iter.test_ids[i:i + batch_size])
-            pred = self.predict_on_batch(batch)[l1]
-            predict += visualize(pred, l2)
+            batch = batch_iter.load_batch(0, test=True, ids=batch_iter.test_ids[i:i + batch_size])[l1]
+            predict += visualize(self.predict(batch, l1=l1, l2=l2, n_iters=n_iters), l2)
         return predict
 
 

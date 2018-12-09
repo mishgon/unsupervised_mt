@@ -52,7 +52,7 @@ trainer = Trainer(partial(ds.translate_batch_word_by_word, l1='src', l2='tgt'),
 print('finish initializing models')
 
 # training
-batch_size = 10
+batch_size = 30
 num_steps = 50000
 
 core_losses = []

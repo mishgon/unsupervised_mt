@@ -39,11 +39,11 @@ class Encoder(nn.Module):
 
 
 class DecoderHat(nn.Module):
-    def __init__(self, hidden_size, vocab_size):
+    def __init__(self, hidden_size, vocab_size, bidirectional=True):
         super(DecoderHat, self).__init__()
-        self.hidden_size = hidden_size
+        self.hidden_size = 2 * hidden_size if bidirectional else hidden_size
         self.vocab_size = vocab_size
-        self.linear = nn.Linear(hidden_size, vocab_size)
+        self.linear = nn.Linear(self.hidden_size, vocab_size)
         self.softmax = nn.LogSoftmax(dim=-1)
 
     def forward(self, input):
@@ -183,19 +183,22 @@ class Seq2Seq(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, hidden_size):
+    def __init__(self, hidden_size, bidirectional):
         super(Discriminator, self).__init__()
-        self.hidden_size = hidden_size
+        self.hidden_size = 2 * hidden_size if bidirectional else hidden_size
+        self.bidirectional = bidirectional
 
         self.layers = nn.Sequential(
-            nn.Linear(hidden_size, 100), nn.ReLU(),
+            nn.Linear(self.hidden_size, 100), nn.ReLU(),
             nn.Linear(100, 10), nn.ReLU(),
             nn.Linear(10, 1)
         )
 
     def forward(self, encoder_outputs):
-        outputs = []
-        for t in range(encoder_outputs.size(0))[-1:]:
-            outputs.append(self.layers(encoder_outputs[t]).unsqueeze(0))
+        if self.bidirectional:
+            hidden = torch.cat((encoder_outputs[-1, :, :self.hidden_size // 2],
+                                encoder_outputs[0, :, self.hidden_size // 2:]), dim=-1)
+        else:
+            hidden = encoder_outputs[-1]
 
-        return torch.cat(outputs)
+        return self.layers(hidden)

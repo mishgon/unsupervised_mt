@@ -97,16 +97,11 @@ class Trainer:
         self.core_optimizer.step()
 
         # training discriminator
-        src2src_enc.requires_grad = False
-        tgt2tgt_enc.requires_grad = False
-        tgt2src_enc.requires_grad = False
-        src2tgt_enc.requires_grad = False
-
         discriminator_loss = \
-            classification_loss(self.discriminator(src2src_enc), 'src') + \
-            classification_loss(self.discriminator(tgt2tgt_enc), 'tgt') + \
-            classification_loss(self.discriminator(tgt2src_enc), 'tgt') + \
-            classification_loss(self.discriminator(src2tgt_enc), 'src')
+            classification_loss(self.discriminator(src2src_enc.detach()), 'src') + \
+            classification_loss(self.discriminator(tgt2tgt_enc.detach()), 'tgt') + \
+            classification_loss(self.discriminator(tgt2src_enc.detach()), 'tgt') + \
+            classification_loss(self.discriminator(src2tgt_enc.detach()), 'src')
 
         # update discriminator parameters
         self.discriminator_optimizer.zero_grad()

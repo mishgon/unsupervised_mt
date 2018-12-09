@@ -20,10 +20,6 @@ def translation_loss(translated, target):
 
 def classification_loss(logits, language):
     """
-    logits: length x batch_size x 1
+    logits: batch_size x 1
     """
-    loss = 0
-    for t in range(logits.size(0)):
-        loss += binary_cross_entropy_with_logits(logits[t], torch.full(logits.shape[1:], language == 'tgt', device=logits.device))
-
-    return loss
+    return binary_cross_entropy_with_logits(logits, torch.full(logits.shape, language == 'tgt', device=logits.device))

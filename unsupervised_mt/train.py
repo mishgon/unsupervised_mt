@@ -91,21 +91,26 @@ class Trainer:
             classification_loss(self.discriminator(src2tgt_enc), 'tgt')
         )
 
+        # update core model's parameters
+        self.core_optimizer.zero_grad()
+        core_loss.backward(retain_graph=True)
+        self.core_optimizer.step()
+
         # training discriminator
+        src2src_enc.requires_grad = False
+        tgt2tgt_enc.requires_grad = False
+        tgt2src_enc.requires_grad = False
+        src2tgt_enc.requires_grad = False
+
         discriminator_loss = \
             classification_loss(self.discriminator(src2src_enc), 'src') + \
             classification_loss(self.discriminator(tgt2tgt_enc), 'tgt') + \
             classification_loss(self.discriminator(tgt2src_enc), 'tgt') + \
             classification_loss(self.discriminator(src2tgt_enc), 'src')
 
-        # update core model's parameters
-        self.core_optimizer.zero_grad()
-        core_loss.backward(retain_graph=True)
-        self.core_optimizer.step()
-
         # update discriminator parameters
         self.discriminator_optimizer.zero_grad()
-        discriminator_loss.backward(retain_graph=True)
+        discriminator_loss.backward()
         self.discriminator_optimizer.step()
 
         return core_loss.item(), discriminator_loss.item()
